@@ -375,7 +375,7 @@ def processDocx(filename):
     data = bytearray(zfile.open('word/document.xml').read())
     zfile.close()
 
-    op = re.compile(b'<w:t[>\s]')
+    op = re.compile(b'<w:t(?: [^>]*|)>')
     cl = re.compile(b'</w:t>')
 
     ops = [x.end() for x in op.finditer(data)]
