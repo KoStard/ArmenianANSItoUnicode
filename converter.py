@@ -345,7 +345,7 @@ class UpdateableZipFile(ZipFile):
             shutil.rmtree(tempdir)
 
 
-def processData(data, ops, cls):
+def convert_data(data, ops, cls):
     perc = 0
     lastRound = 0
     for i in range(len(ops)):  # len(ops)
@@ -371,6 +371,7 @@ def processData(data, ops, cls):
 
 
 def processDocx(filename):
+    """ Converting data from innerText of w:t tags """
     zfile = zipfile.ZipFile(filename, 'r')
     data = bytearray(zfile.open('word/document.xml').read())
     zfile.close()
@@ -380,7 +381,7 @@ def processDocx(filename):
 
     ops = [x.end() for x in op.finditer(data)]
     cls = [x.start() for x in cl.finditer(data)]
-    processData(data, ops, cls)
+    convert_data(data, ops, cls)
 
     print("Saving...")
     new_filename = get_output_filename(filename)
@@ -395,9 +396,9 @@ def processPDF(filename):
     print("Can't do anything yet...")
 
 
-def processTxt(filename):
+def processTXT(filename):
     data = bytearray(open(filename, 'rb').read())
-    processData(data, [0], [len(data)])
+    convert_data(data, [0], [len(data)])
     print("Saving...")
     open(get_output_filename(filename), 'wb').write(data)
     print("Done")
@@ -415,6 +416,6 @@ if ext == 'docx':
 elif ext == 'pdf':
     processPDF(filename)
 elif ext == 'txt':
-    processTxt(filename)
+    processTXT(filename)
 else:
     print("Invalid file type {}".format(ext))
