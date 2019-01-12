@@ -23,9 +23,10 @@ def get_unique_name(filename):
         i = 1
         while '{}-{}.{}'.format(name, i, ext) in content:
             i += 1
-        return dirname + '{}-{}.{}'.format(name, i, ext)
+        return dirname + ('/' if dirname else '') + '{}-{}.{}'.format(
+            name, i, ext)
     else:
-        return dirname + filename
+        return dirname + ('/' if dirname else '') + filename
 
 
 def get_output_filename(filename):
@@ -38,7 +39,8 @@ def get_output_filename(filename):
         name = filename
         ext = ''
     name += '-output'
-    return get_unique_name(dirname + '{}.{}'.format(name, ext))
+    return get_unique_name(dirname + ('/' if dirname else '') +
+                           '{}.{}'.format(name, ext))
 
 
 class UpdateableZipFile(ZipFile):
@@ -156,7 +158,7 @@ class UpdateableZipFile(ZipFile):
             shutil.rmtree(tempdir)
 
 
-def processDocx(filename):
+def processDocx(filename, handler=None):
     """ Converting data from innerText of w:t tags """
     zfile = zipfile.ZipFile(filename, 'r')
     data = bytearray(zfile.open('word/document.xml').read())
@@ -167,7 +169,7 @@ def processDocx(filename):
 
     ops = [x.end() for x in op.finditer(data)]
     cls = [x.start() for x in cl.finditer(data)]
-    decode_data(data, ops, cls)
+    decode_data(data, ops, cls, handler=handler)
 
     print("Saving...")
     new_filename = get_output_filename(filename)
@@ -176,32 +178,41 @@ def processDocx(filename):
     with UpdateableZipFile(new_filename, 'a') as f:
         f.writestr('word/document.xml', data)
     print("Done")
+    return new_filename
 
 
-def processPDF(filename):
-    print("Can't do anything yet...")
-
-
-def processTXT(filename):
+def processTXT(filename, handler=None):
     data = bytearray(open(filename, 'rb').read())
-    decode_data(data, [0], [len(data)])
+    decode_data(data, [0], [len(data)], handler=handler)
+    new_filename = get_output_filename(filename)
     print("Saving...")
-    open(get_output_filename(filename), 'wb').write(data)
+    open(new_filename, 'wb').write(data)
     print("Done")
+    return new_filename
 
 
-filename = ''
-if len(sys.argv) > 1:
-    filename = sys.argv[1]
-while not filename:
-    fn = input("Please input valid docx filename: ")
+available_formats = {'docx': processDocx, 'txt': processTXT}
 
-ext = filename.split('.')[-1]
-if ext == 'docx':
-    processDocx(filename)
-elif ext == 'pdf':
-    processPDF(filename)
-elif ext == 'txt':
-    processTXT(filename)
-else:
-    print("Invalid file type {}".format(ext))
+
+def process(filename, *, handler=None):
+    ext = os.path.splitext(filename)[1][1:]
+    if ext not in available_formats:
+        print("Invalid format")
+        return
+    new_filename = available_formats[ext](filename, handler)
+    handler.setValue(100)
+    return new_filename
+
+
+if __name__ == '__main__':
+    filename = ''
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+    while not filename:
+        fn = input("Please input valid docx filename: ")
+
+    ext = filename.split('.')[-1]
+    if ext in available_formats:
+        available_formats[ext](filename)
+    else:
+        print("Invalid file type {}".format(ext))

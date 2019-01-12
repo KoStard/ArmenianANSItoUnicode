@@ -99,7 +99,13 @@ bmp = {
 }
 
 
-def decode_data(data, ops=None, cls=None, *, silent=True, decode=False):
+def decode_data(data,
+                ops=None,
+                cls=None,
+                *,
+                silent=True,
+                decode=False,
+                handler=None):
     """ Will decode ANSI Armenian characters and convert them to UTF-8 """
     if isinstance(data, str):
         data = bytearray(data, 'utf-8')
@@ -110,11 +116,13 @@ def decode_data(data, ops=None, cls=None, *, silent=True, decode=False):
     if not cls:
         cls = [len(data)]
     for i in range(len(ops)):  # len(ops)
+        perc = (i + 1) * 100 / len(ops)
         if not silent:
-            perc = (i + 1) * 100 / len(ops)
             if math.floor(perc) // 10 > lastRound:
                 lastRound = math.floor(perc) // 10
                 print("{}%".format(math.floor(perc)))
+        if handler:
+            handler.setValue(perc * 0.9)
         buffer = bytearray()
         res = bytearray()
         for j in range(ops[i], cls[i]):
