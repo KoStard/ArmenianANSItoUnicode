@@ -88,7 +88,10 @@ class Table(QTableWidget):
         urls = e.mimeData().urls()
         for url in urls:
             ext = os.path.splitext(url.fileName())[1]
-            self.addFile(url.path())
+            path = url.path()
+            if os.name == 'nt' and path[0] == '/':
+                path = path[1:]
+            self.addFile(path)
             if not ext or ext[1:] not in available_formats:
                 pass
 

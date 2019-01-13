@@ -38,7 +38,7 @@ def get_output_filename(filename):
     else:
         name = filename
         ext = ''
-    name += '-output'
+    name += '-converted'
     return get_unique_name(dirname + ('/' if dirname else '') +
                            '{}.{}'.format(name, ext))
 
