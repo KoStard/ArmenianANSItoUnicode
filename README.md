@@ -1,6 +1,7 @@
 # ArmenianANSItoUnicode
 Armenian ANSI to Unicode converter.
-A simple, but powerful script for converting Armenian ANSI symbols to UNICODE.
+A simple, but powerful script for converting Armenian ANSI symbols to UNICODE - working with .docx, .pptx and .txt
+
 Enter this in the terminal to run the script: `$ python converter.py [fileToConvert]`
 
 Or use GUI by running the release by doubleclick or by `$ python drag_and_drop.py`
