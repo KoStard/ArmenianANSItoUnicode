@@ -181,6 +181,44 @@ def processDocx(filename, handler=None):
     return new_filename
 
 
+def processPPTX(filename, handler=None):
+    """ Converting data from innerText of w:t tags """
+    zfile = zipfile.ZipFile(filename, 'r')
+    slide_index = 0
+    data = []
+    while True:
+        slide_index += 1
+        try:
+            slide_data = bytearray(
+                zfile.open(
+                    'ppt/slides/slide{}.xml'.format(slide_index)).read())
+        except Exception as e:
+            print('Found {} slides'.format(slide_index - 1))
+            break
+
+        op = re.compile(b'<a:t(?: [^>]*|)>')
+        cl = re.compile(b'</a:t>')
+
+        ops = [x.end() for x in op.finditer(slide_data)]
+        cls = [x.start() for x in cl.finditer(slide_data)]
+        decode_data(
+            slide_data, ops, cls,
+            handler=handler)  # Will result to blinking progress bar
+        data.append(slide_data)
+
+    zfile.close()
+    print("Saving...")
+    new_filename = get_output_filename(filename)
+    print("Saving to: {}".format(new_filename))
+    shutil.copyfile(filename, new_filename)
+    with UpdateableZipFile(new_filename, 'a') as f:
+        for i in range(len(data)):
+            print('Writing slide {}'.format(i + 1))
+            f.writestr('ppt/slides/slide{}.xml'.format(i + 1), data[i])
+    print("Done")
+    return new_filename
+
+
 def processTXT(filename, handler=None):
     data = bytearray(open(filename, 'rb').read())
     decode_data(data, [0], [len(data)], handler=handler)
@@ -191,7 +229,11 @@ def processTXT(filename, handler=None):
     return new_filename
 
 
-available_formats = {'docx': processDocx, 'txt': processTXT}
+available_formats = {
+    'docx': processDocx,
+    'pptx': processPPTX,
+    'txt': processTXT
+}
 
 
 def process(filename, *, handler=None):
