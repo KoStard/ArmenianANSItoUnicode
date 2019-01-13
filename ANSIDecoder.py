@@ -105,24 +105,26 @@ def decode_data(data,
                 *,
                 silent=True,
                 decode=False,
-                handler=None):
+                handler=None,
+                perc_from=0,
+                perc_to=90):
     """ Will decode ANSI Armenian characters and convert them to UTF-8 """
     if isinstance(data, str):
         data = bytearray(data, 'utf-8')
-    perc = 0
     lastRound = 0
     if not ops:
         ops = [0]
     if not cls:
         cls = [len(data)]
     for i in range(len(ops)):  # len(ops)
-        perc = (i + 1) * 100 / len(ops)
+        perc = perc_from + (i + 1) * (perc_to - perc_from) / len(ops)
         if not silent:
             if math.floor(perc) // 10 > lastRound:
                 lastRound = math.floor(perc) // 10
                 print("{}%".format(math.floor(perc)))
         if handler:
-            handler.setValue(perc * 0.9)
+            handler.setValue(perc)
+            handler.update()
         buffer = bytearray()
         res = bytearray()
         for j in range(ops[i], cls[i]):

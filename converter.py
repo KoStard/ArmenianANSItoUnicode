@@ -184,17 +184,17 @@ def processDocx(filename, handler=None):
 def processPPTX(filename, handler=None):
     """ Converting data from innerText of w:t tags """
     zfile = zipfile.ZipFile(filename, 'r')
-    slide_index = 0
     data = []
-    while True:
-        slide_index += 1
-        try:
-            slide_data = bytearray(
-                zfile.open(
-                    'ppt/slides/slide{}.xml'.format(slide_index)).read())
-        except Exception as e:
-            print('Found {} slides'.format(slide_index - 1))
-            break
+    slides_number = 0
+    for fn in zfile.namelist():
+        m = re.match('ppt/slides/slide(\d+)\.xml', fn)
+        if m:
+            index = int(m.group(1))
+            if index > slides_number:
+                slides_number = index
+    for slide_index in range(1, slides_number):
+        slide_data = bytearray(
+            zfile.open('ppt/slides/slide{}.xml'.format(slide_index)).read())
 
         op = re.compile(b'<a:t(?: [^>]*|)>')
         cl = re.compile(b'</a:t>')
@@ -202,8 +202,13 @@ def processPPTX(filename, handler=None):
         ops = [x.end() for x in op.finditer(slide_data)]
         cls = [x.start() for x in cl.finditer(slide_data)]
         decode_data(
-            slide_data, ops, cls,
-            handler=handler)  # Will result to blinking progress bar
+            slide_data,
+            ops,
+            cls,
+            handler=handler,
+            perc_from=(slide_index - 1) * 90 // (slides_number - 1),
+            perc_to=slide_index * 90 //
+            (slides_number - 1))  # Will result to blinking progress bar
         data.append(slide_data)
 
     zfile.close()
@@ -213,7 +218,6 @@ def processPPTX(filename, handler=None):
     shutil.copyfile(filename, new_filename)
     with UpdateableZipFile(new_filename, 'a') as f:
         for i in range(len(data)):
-            print('Writing slide {}'.format(i + 1))
             f.writestr('ppt/slides/slide{}.xml'.format(i + 1), data[i])
     print("Done")
     return new_filename
