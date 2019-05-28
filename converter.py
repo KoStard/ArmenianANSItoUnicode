@@ -1,10 +1,11 @@
+from universals import as_daemon
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import tempfile
 import os
 import sys
 import zipfile
 import re
-import math
+import subprocess
 import shutil
 from ANSIDecoder import decode_data
 
@@ -158,7 +159,7 @@ class UpdateableZipFile(ZipFile):
             shutil.rmtree(tempdir)
 
 
-def processDocx(filename, handler=None):
+def processDocx(filename, handler=None, handler_getter=None):
     """ Converting data from innerText of w:t tags """
     zfile = zipfile.ZipFile(filename, 'r')
     data = bytearray(zfile.open('word/document.xml').read())
@@ -169,7 +170,7 @@ def processDocx(filename, handler=None):
 
     ops = [x.end() for x in op.finditer(data)]
     cls = [x.start() for x in cl.finditer(data)]
-    decode_data(data, ops, cls, handler=handler)
+    decode_data(data, ops, cls, handler=handler, handler_getter=handler_getter)
 
     print("Saving...")
     new_filename = get_output_filename(filename)
@@ -181,7 +182,7 @@ def processDocx(filename, handler=None):
     return new_filename
 
 
-def processPPTX(filename, handler=None):
+def processPPTX(filename, handler=None, handler_getter=None):
     """ Converting data from innerText of w:t tags """
     zfile = zipfile.ZipFile(filename, 'r')
     data = []
@@ -206,6 +207,7 @@ def processPPTX(filename, handler=None):
             ops,
             cls,
             handler=handler,
+            handler_getter = handler_getter,
             perc_from=(slide_index - 1) * 90 // (slides_number - 1),
             perc_to=slide_index * 90 //
             (slides_number - 1))  # Will result to blinking progress bar
@@ -223,15 +225,50 @@ def processPPTX(filename, handler=None):
     return new_filename
 
 
-def processTXT(filename, handler=None):
+def processTXT(filename, handler=None, handler_getter=None):
     data = bytearray(open(filename, 'rb').read())
-    decode_data(data, [0], [len(data)], handler=handler)
+    decode_data(data, [0], [len(data)], handler=handler, handler_getter=handler_getter)
     new_filename = get_output_filename(filename)
     print("Saving...")
     open(new_filename, 'wb').write(data)
     print("Done")
     return new_filename
 
+def process_doc(filename, handler=None, handler_getter=None):
+    """
+    Will process .doc files in platform specific manner
+     - For the linux will use soffice
+     - For the windows will use win32com.client
+    """
+    if sys.platform == 'linux':
+        subprocess.call(['soffice', '--headless', '--convert-to', 'docx', filename])
+        new_filename = re.sub(r'\.\w+$', '.docx', os.path.split(filename)[1])
+        converted_filename = processDocx(new_filename, handler)
+        os.remove(new_filename)
+        moved_converted_filename = os.path.split(filename)[0]+os.path.split(converted_filename)[1]
+        os.rename(converted_filename, moved_converted_filename)
+        return moved_converted_filename
+    elif sys.platform == 'win32':
+        import win32com.client as win32
+        from win32com.client import constants
+
+        # Opening MS Word
+        word = win32.gencache.EnsureDispatch('Word.Application')
+        doc = word.Documents.Open(filename)
+        doc.Activate()
+
+        # Rename path with .docx
+        new_file_abs = os.path.abspath(filename)
+        new_file_abs = re.sub(r'\.\w+$', '.docx', new_file_abs)
+
+        # Save and Close
+        word.ActiveDocument.SaveAs(
+            new_file_abs, FileFormat=constants.wdFormatXMLDocument
+        )
+        doc.Close(False)
+        return processDocx(new_file_abs, handler)
+    else:
+        raise NotImplementedError("Not implemented for current platform!")
 
 available_formats = {
     'docx': processDocx,
@@ -239,14 +276,22 @@ available_formats = {
     'txt': processTXT
 }
 
+if sys.platform in ('linux', 'win32'):
+    available_formats['doc'] = process_doc
 
-def process(filename, *, handler=None):
+
+def process(filename, *, handler=None, handler_getter=None, files_status_handler=None):
     ext = os.path.splitext(filename)[1][1:]
     if ext not in available_formats:
         print("Invalid format")
         return
-    new_filename = available_formats[ext](filename, handler)
-    handler.setValue(100)
+    new_filename = available_formats[ext](filename, handler, handler_getter=handler_getter)
+    if handler:
+        handler.setValue(100)
+    if handler_getter:
+        handler_getter().setValue(100)
+    if files_status_handler:
+        files_status_handler[filename] = new_filename
     return new_filename
 
 

@@ -116,7 +116,8 @@ class Table(QTableWidget):
         table_item.setRowIndex(rowsCount)
         self.setCellWidget(rowsCount, 1, pbar)
 
-        self.files[rowsCount]['new_path'] = process(path, handler=pbar)
+        pbar.setValue(0)
+        process(path, handler=pbar, files_status_handler=self.files[rowsCount])
 
 
 class Example(QWidget):

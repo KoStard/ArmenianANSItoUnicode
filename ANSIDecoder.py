@@ -107,7 +107,8 @@ def decode_data(data,
                 decode=False,
                 handler=None,
                 perc_from=0,
-                perc_to=90):
+                perc_to=90,
+                handler_getter=None):
     """ Will decode ANSI Armenian characters and convert them to UTF-8 """
     if isinstance(data, str):
         data = bytearray(data, 'utf-8')
@@ -125,6 +126,10 @@ def decode_data(data,
         if handler:
             handler.setValue(perc)
             handler.update()
+        if handler_getter:
+            h = handler_getter()
+            h.setValue(perc)
+            h.update()
         buffer = bytearray()
         res = bytearray()
         for j in range(ops[i], cls[i]):
